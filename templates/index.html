@@ -1,0 +1,1473 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Прогнозирование метрик</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Система прогнозирования метрик</h1>
+            <p>Загрузите CSV файл, настройте столбцы и получите прогноз</p>
+        </header>
+
+        <!-- Навигация по вкладкам -->
+        <div class="tabs">
+            <button class="tab-btn active" onclick="showTab('forecast', this)">Прогнозирование</button>
+            <button class="tab-btn" onclick="showTab('visualization', this)">Визуализация</button>
+            <button class="tab-btn" onclick="showTab('elasticity', this)">Моделирование сценариев</button>
+        </div>
+
+        <!-- Вкладка: Прогнозирование -->
+        <div id="tab-forecast" class="tab-content">
+        <!-- Шаг 1: Загрузка файла -->
+        <div class="step" id="step1">
+            <h2>Шаг 1: Загрузка CSV файла</h2>
+            <div class="upload-area" id="uploadArea">
+                <input type="file" id="fileInput" accept=".csv" style="display: none;">
+                <div class="upload-content">
+                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="17 8 12 3 7 8"></polyline>
+                        <line x1="12" y1="3" x2="12" y2="15"></line>
+                    </svg>
+                    <p>Нажмите для выбора файла или перетащите CSV файл сюда</p>
+                    <p class="file-info" id="fileInfo"></p>
+                </div>
+            </div>
+            <div id="previewSection" style="display: none;">
+                <h3>Предпросмотр данных</h3>
+                <div class="table-container">
+                    <table id="previewTable"></table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Шаг 2: Настройка столбцов -->
+        <div class="step" id="step2" style="display: none;">
+            <h2>Шаг 2: Настройка столбцов</h2>
+            
+            <div class="config-section">
+                <h3>Временные столбцы</h3>
+                <p class="help-text">Выберите столбцы, содержащие временную информацию, и укажите их тип</p>
+                <div id="timeColumnsConfig"></div>
+            </div>
+
+            <div class="config-section">
+                <h3>Категориальные столбцы</h3>
+                <p class="help-text">Выберите столбцы для группировки данных (срезы)</p>
+                <div id="categoricalColumnsConfig"></div>
+            </div>
+
+            <div class="config-section">
+                <h3>Числовые метрики</h3>
+                <p class="help-text">Выберите целевые метрики для прогнозирования</p>
+                <div id="metricColumnsConfig"></div>
+            </div>
+
+            <div class="config-section">
+                <h3>Параметры прогноза</h3>
+                <div class="form-group">
+                    <label for="forecastPeriods">Количество периодов для прогноза:</label>
+                    <input type="number" id="forecastPeriods" min="1" max="24" value="4" class="form-control">
+                </div>
+            </div>
+
+            <button class="btn btn-primary" onclick="buildForecast()">Построить прогноз</button>
+        </div>
+
+        <!-- Шаг 3: Результаты -->
+        <div class="step" id="step3" style="display: none;">
+            <h2>Шаг 3: Результаты прогноза</h2>
+            
+            <div id="loadingIndicator" style="display: none;">
+                <div class="spinner"></div>
+                <p>Построение прогноза... Это может занять некоторое время.</p>
+            </div>
+
+            <div id="resultsContent" style="display: none;">
+                <div class="summary-cards">
+                    <div class="card">
+                        <h3>Исторических записей</h3>
+                        <p class="number" id="historicalCount">0</p>
+                    </div>
+                    <div class="card">
+                        <h3>Прогнозных записей</h3>
+                        <p class="number" id="forecastCount">0</p>
+                    </div>
+                </div>
+
+                <div class="metrics-summary" id="metricsSummary"></div>
+
+                <div class="actions">
+                    <a id="downloadBtn" href="#" class="btn btn-success" download>Скачать результат (CSV)</a>
+                    <button class="btn btn-secondary" onclick="resetApp()">Начать заново</button>
+                </div>
+            </div>
+
+            <div id="errorMessage" style="display: none;" class="error-message"></div>
+        </div>
+        </div>
+
+        <!-- Вкладка: Визуализация -->
+        <div id="tab-visualization" class="tab-content" style="display: none;">
+            <div class="step">
+                <h2>Интерактивная визуализация прогноза</h2>
+                
+                <div id="noDataMessage" class="error-message" style="display: none;">
+                    <p>Нет доступных данных прогноза. Пожалуйста, сначала постройте прогноз во вкладке "Прогнозирование".</p>
+                </div>
+
+                <div id="visualizationContent" style="display: none;">
+                    <div class="config-section">
+                        <h3>Настройки графика</h3>
+                        <div class="form-group">
+                            <label for="forecastSelect">Выберите прогноз:</label>
+                            <select id="forecastSelect" class="form-control" onchange="loadForecastData()">
+                                <option value="">Загрузка...</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="metricSelect">Выберите метрику:</label>
+                            <select id="metricSelect" class="form-control" onchange="updateChart()">
+                                <option value="">Выберите метрику</option>
+                            </select>
+                        </div>
+                        <div id="filtersContainer">
+                            <!-- Фильтры по категориальным столбцам будут добавлены динамически -->
+                        </div>
+                    </div>
+
+                    <div class="chart-container">
+                        <canvas id="forecastChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Вкладка: Моделирование сценариев -->
+        <div id="tab-elasticity" class="tab-content" style="display: none;">
+            <div class="step">
+                <h2>Моделирование сценариев</h2>
+                
+                <div id="noElasticityDataMessage" class="error-message" style="display: none;">
+                    <p>Нет доступных данных прогноза. Пожалуйста, сначала постройте прогноз во вкладке "Прогнозирование".</p>
+                </div>
+
+                <div id="elasticityContent" style="display: none;">
+                    <div class="config-section">
+                        <h3>Настройки расчета</h3>
+                        <div class="form-group">
+                            <label for="elasticityForecastSelect">Выберите прогноз:</label>
+                            <select id="elasticityForecastSelect" class="form-control" onchange="loadElasticityForecastData()">
+                                <option value="">Загрузка...</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="xMetricSelect">Метрика X (независимая переменная):</label>
+                            <select id="xMetricSelect" class="form-control">
+                                <option value="">Выберите метрику X</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="yMetricSelect">Метрика Y (зависимая переменная):</label>
+                            <select id="yMetricSelect" class="form-control">
+                                <option value="">Выберите метрику Y</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-primary" onclick="calculateElasticity()">Рассчитать эластичность</button>
+                    </div>
+
+                    <div id="elasticityResults" style="display: none;">
+                        <div id="elasticityLoading" style="display: none;">
+                            <div class="spinner"></div>
+                            <p>Загрузка данных...</p>
+                        </div>
+                        
+                        <!-- Интерактивная таблица фильтров -->
+                        <div id="filtersTable" style="display: none;">
+                            <div class="config-section">
+                                <h3>Выбор среза данных</h3>
+                                <p class="help-text">Выберите значения для каждого категориального признака или оставьте "Все" для включения всех значений. Эластичность будет рассчитана для выбранного среза.</p>
+                                <div class="table-container">
+                                    <table id="filtersTableContent" class="filters-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Категориальный признак</th>
+                                                <th>Выбранное значение</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="filtersTableBody">
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <button class="btn btn-primary" onclick="loadSliceElasticity()" style="margin-top: 15px;">
+                                    Показать эластичность по выбранному срезу
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Результат по срезу -->
+                        <div id="sliceElasticityResult" style="display: none;">
+                            <div class="config-section">
+                                <h3>Эластичность по выбранному срезу</h3>
+                                <div id="sliceElasticityContent"></div>
+                            </div>
+                            
+                            <!-- Интерактивная таблица для моделирования -->
+                            <div id="scenarioTable" style="display: none;">
+                                <div class="config-section">
+                                    <h3>Моделирование сценария</h3>
+                                    <p class="help-text">Измените значения метрики-драйвера (X) для моделирования влияния на зависимую метрику (Y). Изменения рассчитываются автоматически на основе коэффициента эластичности.</p>
+                                    <div class="table-container" style="max-height: 500px; overflow-y: auto;">
+                                        <table id="scenarioTableContent" class="scenario-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Дата</th>
+                                                    <th id="xMetricHeader">Метрика X</th>
+                                                    <th id="yMetricHeader">Метрика Y</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="scenarioTableBody">
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentData = null;
+        let sessionId = null;
+
+        // Инициализация обработчиков загрузки файла
+        function initFileUpload() {
+            const uploadArea = document.getElementById('uploadArea');
+            const fileInput = document.getElementById('fileInput');
+
+            if (!uploadArea || !fileInput) {
+                return;
+            }
+
+            uploadArea.addEventListener('click', () => {
+                fileInput.click();
+            });
+            
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
+            });
+            
+            uploadArea.addEventListener('dragenter', (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
+            });
+            
+            uploadArea.addEventListener('dragleave', (e) => {
+                uploadArea.classList.remove('dragover');
+            });
+            
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+                
+                const files = e.dataTransfer.files;
+                if (files && files.length > 0) {
+                    const file = files[0];
+                    if (file && file.name && file.name.endsWith('.csv')) {
+                        handleFile(file);
+                    } else {
+                        alert('Пожалуйста, перетащите CSV файл');
+                    }
+                }
+            });
+
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    handleFile(e.target.files[0]);
+                }
+            });
+        }
+
+        // Инициализируем при загрузке DOM
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initFileUpload);
+        } else {
+            initFileUpload();
+        }
+
+        function handleFile(file) {
+            if (!file.name.endsWith('.csv')) {
+                alert('Пожалуйста, выберите CSV файл');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(data => {
+                        throw new Error(data.error || 'Ошибка при загрузке файла');
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.error) {
+                    alert('Ошибка: ' + data.error);
+                    return;
+                }
+
+                currentData = data;
+                sessionId = data.session_id;
+                document.getElementById('fileInfo').textContent = `Загружен: ${data.columns.length} столбцов`;
+                
+                // Показываем предпросмотр
+                showPreview(data.preview, data.columns);
+                
+                // Показываем шаг 2
+                document.getElementById('step2').style.display = 'block';
+                setupColumnConfig(data.columns, data.column_types);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Ошибка при загрузке файла: ' + error.message);
+            });
+        }
+
+        function showPreview(preview, columns) {
+            const table = document.getElementById('previewTable');
+            let html = '<thead><tr>';
+            columns.forEach(col => {
+                html += `<th>${col}</th>`;
+            });
+            html += '</tr></thead><tbody>';
+
+            preview.forEach(row => {
+                html += '<tr>';
+                columns.forEach(col => {
+                    html += `<td>${row[col] || ''}</td>`;
+                });
+                html += '</tr>';
+            });
+            html += '</tbody>';
+
+            table.innerHTML = html;
+            document.getElementById('previewSection').style.display = 'block';
+        }
+
+        function setupColumnConfig(columns, columnTypes) {
+            // Временные столбцы
+            const timeConfig = document.getElementById('timeColumnsConfig');
+            timeConfig.innerHTML = '';
+            columns.forEach(col => {
+                const div = document.createElement('div');
+                div.className = 'column-item';
+                div.innerHTML = `
+                    <label>
+                        <input type="checkbox" class="time-checkbox" data-column="${col}">
+                        ${col}
+                    </label>
+                    <select class="time-type-select" data-column="${col}" disabled style="margin-left: 10px;">
+                        <option value="">Выберите тип</option>
+                        <option value="year">Год</option>
+                        <option value="month">Месяц</option>
+                        <option value="day">День</option>
+                        <option value="hour">Час</option>
+                        <option value="minute">Минута</option>
+                        <option value="second">Секунда</option>
+                    </select>
+                `;
+                timeConfig.appendChild(div);
+
+                const checkbox = div.querySelector('.time-checkbox');
+                const select = div.querySelector('.time-type-select');
+                checkbox.addEventListener('change', () => {
+                    select.disabled = !checkbox.checked;
+                    if (!checkbox.checked) {
+                        select.value = '';
+                    }
+                });
+            });
+
+            // Категориальные столбцы
+            const catConfig = document.getElementById('categoricalColumnsConfig');
+            catConfig.innerHTML = '';
+            columns.forEach(col => {
+                const div = document.createElement('div');
+                div.className = 'column-item';
+                div.innerHTML = `
+                    <label>
+                        <input type="checkbox" class="categorical-checkbox" data-column="${col}">
+                        ${col}
+                    </label>
+                `;
+                catConfig.appendChild(div);
+            });
+
+            // Метрики
+            const metricConfig = document.getElementById('metricColumnsConfig');
+            metricConfig.innerHTML = '';
+            columns.forEach(col => {
+                if (columnTypes[col] === 'numeric') {
+                    const div = document.createElement('div');
+                    div.className = 'column-item';
+                    div.innerHTML = `
+                        <label>
+                            <input type="checkbox" class="metric-checkbox" data-column="${col}">
+                            ${col}
+                        </label>
+                    `;
+                    metricConfig.appendChild(div);
+                }
+            });
+        }
+
+        function buildForecast() {
+            // Собираем настройки
+            const timeColumns = {};
+            document.querySelectorAll('.time-checkbox:checked').forEach(cb => {
+                const col = cb.dataset.column;
+                const select = document.querySelector(`.time-type-select[data-column="${col}"]`);
+                if (select && select.value) {
+                    timeColumns[col] = select.value;
+                }
+            });
+
+            const categoricalColumns = [];
+            document.querySelectorAll('.categorical-checkbox:checked').forEach(cb => {
+                categoricalColumns.push(cb.dataset.column);
+            });
+
+            const metricColumns = [];
+            document.querySelectorAll('.metric-checkbox:checked').forEach(cb => {
+                metricColumns.push(cb.dataset.column);
+            });
+
+            const forecastPeriods = parseInt(document.getElementById('forecastPeriods').value) || 4;
+
+            // Валидация
+            if (Object.keys(timeColumns).length === 0) {
+                alert('Необходимо выбрать хотя бы один временной столбец');
+                return;
+            }
+
+            if (metricColumns.length === 0) {
+                alert('Необходимо выбрать хотя бы одну целевую метрику');
+                return;
+            }
+
+            // Показываем шаг 3 и индикатор загрузки
+            document.getElementById('step3').style.display = 'block';
+            document.getElementById('loadingIndicator').style.display = 'block';
+            document.getElementById('resultsContent').style.display = 'none';
+            document.getElementById('errorMessage').style.display = 'none';
+
+            // Отправляем запрос на прогноз
+            fetch('/forecast', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    time_columns: timeColumns,
+                    categorical_columns: categoricalColumns,
+                    metric_columns: metricColumns,
+                    forecast_periods: forecastPeriods
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('loadingIndicator').style.display = 'none';
+                
+                if (data.error) {
+                    document.getElementById('errorMessage').textContent = data.error;
+                    document.getElementById('errorMessage').style.display = 'block';
+                    return;
+                }
+
+                // Показываем результаты
+                showResults(data.data);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('loadingIndicator').style.display = 'none';
+                document.getElementById('errorMessage').textContent = 'Ошибка при построении прогноза: ' + error.message;
+                document.getElementById('errorMessage').style.display = 'block';
+            });
+        }
+
+        function showResults(data) {
+            document.getElementById('historicalCount').textContent = data.historical_count;
+            document.getElementById('forecastCount').textContent = data.forecast_count;
+            document.getElementById('downloadBtn').href = data.download_url;
+
+            // Метрики качества прогноза
+            const metricsSummary = document.getElementById('metricsSummary');
+            metricsSummary.innerHTML = '';
+            
+            if (data.quality_metrics && Object.keys(data.quality_metrics).length > 0) {
+                const qualitySection = document.createElement('div');
+                qualitySection.className = 'results-section';
+                qualitySection.style.marginTop = '0px';
+                qualitySection.innerHTML = '<h3>Метрики качества прогноза (усредненные по всем срезам)</h3>';
+                
+                Object.keys(data.quality_metrics).forEach((metric, metricIndex) => {
+                    const quality = data.quality_metrics[metric];
+                    const qualityDiv = document.createElement('div');
+                    qualityDiv.className = 'metric-card';
+                    const rSquared = quality['R²'] || quality.R2 || 0;
+                    const sliceDetailsId = `slice-details-${metricIndex}`;
+                    
+                    // Формируем таблицу с деталями по срезам
+                    let slicesTableHtml = '';
+                    if (quality.slices_details && quality.slices_details.length > 0) {
+                        slicesTableHtml = `
+                            <div id="${sliceDetailsId}" style="display: none; margin-top: 15px;">
+                                <h5 style="margin-bottom: 10px;">Детали по срезам:</h5>
+                                <div style="overflow-x: auto;">
+                                    <table style="width: 100%; border-collapse: collapse; font-size: 0.9em;">
+                                        <thead>
+                                            <tr style="background-color: #f5f5f5;">
+                                                <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Срез</th>
+                                                <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Модель</th>
+                                                <th style="padding: 8px; border: 1px solid #ddd; text-align: right;">MAE</th>
+                                                <th style="padding: 8px; border: 1px solid #ddd; text-align: right;">RMSE</th>
+                                                <th style="padding: 8px; border: 1px solid #ddd; text-align: right;">R²</th>
+                                                <th style="padding: 8px; border: 1px solid #ddd; text-align: right;">MAPE</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            ${quality.slices_details.map((slice, idx) => {
+                                                const sliceLabel = slice.slice_filters ? 
+                                                    Object.entries(slice.slice_filters).map(([k, v]) => `${k}: ${v}`).join(', ') : 
+                                                    `Срез ${idx + 1}`;
+                                                return `
+                                                    <tr>
+                                                        <td style="padding: 8px; border: 1px solid #ddd;">${sliceLabel}</td>
+                                                        <td style="padding: 8px; border: 1px solid #ddd;">${slice.model || 'Unknown'}</td>
+                                                        <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${slice.MAE !== null && slice.MAE !== undefined ? slice.MAE.toFixed(4) : 'N/A'}</td>
+                                                        <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${slice.RMSE !== null && slice.RMSE !== undefined ? slice.RMSE.toFixed(4) : 'N/A'}</td>
+                                                        <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${slice['R²'] !== null && slice['R²'] !== undefined ? slice['R²'].toFixed(4) : 'N/A'}</td>
+                                                        <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${slice.MAPE !== null && slice.MAPE !== undefined ? slice.MAPE.toFixed(2) + '%' : 'N/A'}</td>
+                                                    </tr>
+                                                `;
+                                            }).join('')}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        `;
+                    }
+                    
+                    qualityDiv.innerHTML = `
+                        <h4>${metric}</h4>
+                        <div class="quality-metrics">
+                            <div class="quality-grid">
+                                <div><strong>MAE:</strong> ${quality.MAE.toFixed(4)}</div>
+                                <div><strong>RMSE:</strong> ${quality.RMSE.toFixed(4)}</div>
+                                <div><strong>R²:</strong> ${rSquared.toFixed(4)}</div>
+                                <div><strong>MAPE:</strong> ${quality.MAPE.toFixed(2)}%</div>
+                                <div><strong>Количество срезов:</strong> ${quality.slices_count}</div>
+                            </div>
+                            ${quality.models_distribution ? `
+                                <div style="margin-top: 10px;">
+                                    <strong>Распределение моделей:</strong>
+                                    <ul style="margin-top: 5px; padding-left: 20px;">
+                                        ${Object.keys(quality.models_distribution).map(model => 
+                                            `<li>${model}: ${quality.models_distribution[model]} срезов</li>`
+                                        ).join('')}
+                                    </ul>
+                                </div>
+                            ` : ''}
+                            ${quality.slices_details && quality.slices_details.length > 0 ? `
+                                <div style="margin-top: 15px;">
+                                    <button id="${sliceDetailsId}-btn" onclick="toggleSliceDetails('${sliceDetailsId}', '${sliceDetailsId}-btn')" 
+                                            class="btn btn-success" style="font-size: 0.9em;">
+                                        <span id="${sliceDetailsId}-toggle">▼</span> Показать детали по срезам
+                                    </button>
+                                </div>
+                                ${slicesTableHtml}
+                            ` : ''}
+                        </div>
+                    `;
+                    qualitySection.appendChild(qualityDiv);
+                });
+                
+                // Добавляем функцию для переключения видимости деталей
+                if (!window.toggleSliceDetails) {
+                    window.toggleSliceDetails = function(sliceDetailsId, btnId) {
+                        const detailsDiv = document.getElementById(sliceDetailsId);
+                        const btn = document.getElementById(btnId);
+                        if (detailsDiv.style.display === 'none' || !detailsDiv.style.display) {
+                            detailsDiv.style.display = 'block';
+                            btn.innerHTML = '<span id="' + sliceDetailsId + '-toggle">▲</span> Скрыть детали по срезам';
+                        } else {
+                            detailsDiv.style.display = 'none';
+                            btn.innerHTML = '<span id="' + sliceDetailsId + '-toggle">▼</span> Показать детали по срезам';
+                        }
+                    };
+                }
+                
+                metricsSummary.appendChild(qualitySection);
+            }
+
+            document.getElementById('resultsContent').style.display = 'block';
+        }
+
+        function resetApp() {
+            location.reload();
+        }
+
+        // Управление вкладками
+        function showTab(tabName, eventElement) {
+            // Скрываем все вкладки
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.style.display = 'none';
+            });
+            
+            // Убираем активный класс со всех кнопок
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // Показываем выбранную вкладку
+            document.getElementById(`tab-${tabName}`).style.display = 'block';
+            
+            // Добавляем активный класс к кнопке
+            if (eventElement) {
+                eventElement.classList.add('active');
+            } else {
+                // Если eventElement не передан, находим кнопку по тексту
+                document.querySelectorAll('.tab-btn').forEach(btn => {
+                    if (btn.textContent.trim() === 'Прогнозирование' && tabName === 'forecast') {
+                        btn.classList.add('active');
+                    } else if (btn.textContent.trim() === 'Визуализация' && tabName === 'visualization') {
+                        btn.classList.add('active');
+                    } else if (btn.textContent.trim() === 'Моделирование сценариев' && tabName === 'elasticity') {
+                        btn.classList.add('active');
+                    }
+                });
+            }
+            
+            // Если открываем вкладку визуализации или эластичности, загружаем данные
+            if (tabName === 'visualization') {
+                loadForecastList();
+            } else if (tabName === 'elasticity') {
+                loadElasticityForecastList();
+            }
+        }
+
+        // Загрузка списка доступных прогнозов
+        let forecastChart = null;
+        let currentForecastId = null;
+
+        function loadForecastList() {
+            fetch('/api/forecast/list')
+                .then(response => response.json())
+                .then(data => {
+                    const select = document.getElementById('forecastSelect');
+                    select.innerHTML = '<option value="">Выберите прогноз</option>';
+                    
+                    if (data.forecasts && data.forecasts.length > 0) {
+                        data.forecasts.forEach(forecast => {
+                            const option = document.createElement('option');
+                            option.value = forecast.session_id;
+                            option.textContent = `${forecast.created} (${forecast.filename})`;
+                            select.appendChild(option);
+                        });
+                        document.getElementById('visualizationContent').style.display = 'block';
+                        document.getElementById('noDataMessage').style.display = 'none';
+                    } else {
+                        document.getElementById('visualizationContent').style.display = 'none';
+                        document.getElementById('noDataMessage').style.display = 'block';
+                    }
+                })
+                .catch(error => {
+                    console.error('Ошибка при загрузке списка прогнозов:', error);
+                    document.getElementById('visualizationContent').style.display = 'none';
+                    document.getElementById('noDataMessage').style.display = 'block';
+                });
+        }
+
+        // Загрузка данных выбранного прогноза
+        function loadForecastData() {
+            const forecastId = document.getElementById('forecastSelect').value;
+            if (!forecastId) {
+                return;
+            }
+
+            currentForecastId = forecastId;
+
+            fetch(`/api/forecast/data/${forecastId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        alert('Ошибка: ' + data.error);
+                        return;
+                    }
+
+                    // Заполняем список метрик (только спрогнозированные)
+                    const metricSelect = document.getElementById('metricSelect');
+                    metricSelect.innerHTML = '<option value="">Выберите метрику</option>';
+                    if (data.metrics && data.metrics.length > 0) {
+                        data.metrics.forEach(metric => {
+                            const option = document.createElement('option');
+                            option.value = metric;
+                            option.textContent = metric;
+                            metricSelect.appendChild(option);
+                        });
+                    } else {
+                        const option = document.createElement('option');
+                        option.value = '';
+                        option.textContent = 'Нет доступных метрик';
+                        option.disabled = true;
+                        metricSelect.appendChild(option);
+                    }
+
+                    // Заполняем фильтры по категориальным столбцам
+                    const filtersContainer = document.getElementById('filtersContainer');
+                    filtersContainer.innerHTML = '';
+                    
+                    if (data.categorical_columns && Object.keys(data.categorical_columns).length > 0) {
+                        Object.keys(data.categorical_columns).forEach(colName => {
+                            const values = data.categorical_columns[colName];
+                            if (values && values.length > 0) {
+                                const filterDiv = document.createElement('div');
+                                filterDiv.className = 'form-group';
+                                
+                                const label = document.createElement('label');
+                                label.setAttribute('for', `filter_${colName}`);
+                                label.textContent = `Фильтр по ${colName} (опционально):`;
+                                
+                                const select = document.createElement('select');
+                                select.id = `filter_${colName}`;
+                                select.className = 'form-control';
+                                select.setAttribute('data-column', colName);
+                                select.onchange = updateChart;
+                                
+                                const defaultOption = document.createElement('option');
+                                defaultOption.value = '';
+                                defaultOption.textContent = `Все значения`;
+                                select.appendChild(defaultOption);
+                                
+                                values.forEach(value => {
+                                    const option = document.createElement('option');
+                                    option.value = value;
+                                    option.textContent = value;
+                                    select.appendChild(option);
+                                });
+                                
+                                filterDiv.appendChild(label);
+                                filterDiv.appendChild(select);
+                                filtersContainer.appendChild(filterDiv);
+                            }
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('Ошибка при загрузке данных прогноза:', error);
+                    alert('Ошибка при загрузке данных прогноза');
+                });
+        }
+
+        // Обновление графика
+        function updateChart() {
+            const forecastId = currentForecastId;
+            const metric = document.getElementById('metricSelect').value;
+
+            if (!forecastId || !metric) {
+                return;
+            }
+
+            // Собираем все фильтры по категориальным столбцам
+            const filters = {};
+            document.querySelectorAll('[id^="filter_"]').forEach(select => {
+                const columnName = select.getAttribute('data-column');
+                const value = select.value;
+                if (value) {
+                    filters[columnName] = value;
+                }
+            });
+
+            // Формируем URL с параметрами
+            let url = `/api/forecast/chart-data/${forecastId}?metric=${encodeURIComponent(metric)}`;
+            if (Object.keys(filters).length > 0) {
+                url += `&filters=${encodeURIComponent(JSON.stringify(filters))}`;
+            }
+
+            // Сохраняем filters для использования в заголовке графика
+            const currentFilters = {...filters};
+
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        alert('Ошибка: ' + data.error);
+                        return;
+                    }
+
+                    // Подготавливаем данные для графика
+                    const historicalDates = data.historical.dates || [];
+                    const historicalValues = data.historical.values || [];
+                    const forecastDates = data.forecast.dates || [];
+                    const forecastValues = data.forecast.values || [];
+
+                    // Проверяем, что прогноз начинается сразу после исторических данных
+                    // Если есть разрыв, это нормально - просто объединяем
+                    
+                    // Объединяем даты и значения в один непрерывный ряд
+                    // Важно: даты должны быть уникальными и отсортированными
+                    const allDates = [...historicalDates];
+                    const allValues = [...historicalValues];
+                    
+                    // Добавляем прогнозные данные, проверяя на дубликаты
+                    forecastDates.forEach((date, idx) => {
+                        if (!allDates.includes(date)) {
+                            allDates.push(date);
+                            allValues.push(forecastValues[idx]);
+                        }
+                    });
+
+                    // Определяем индекс перехода (последний индекс исторических данных)
+                    const transitionIndex = historicalDates.length - 1;
+
+                    // Уничтожаем предыдущий график, если он существует
+                    if (forecastChart) {
+                        forecastChart.destroy();
+                    }
+
+                    // Сохраняем переменные для использования в плагине
+                    const transitionIdx = transitionIndex;
+                    const totalDates = allDates.length;
+                    
+                    // Создаем массивы данных для каждого датасета
+                    // Исторические данные: значения до transitionIndex включительно, null после
+                    const historicalData = allValues.map((val, idx) => idx <= transitionIdx ? val : null);
+                    // Прогноз: null до transitionIndex, значения после
+                    const forecastData = allValues.map((val, idx) => idx > transitionIdx ? val : null);
+
+                    // Создаем плагин для вертикальной линии разделения
+                    const verticalLinePlugin = {
+                        id: 'verticalLine',
+                        afterDraw: (chart) => {
+                            if (transitionIdx > 0 && transitionIdx < totalDates) {
+                                const ctx = chart.ctx;
+                                const xScale = chart.scales.x;
+                                const yScale = chart.scales.y;
+                                
+                                // Находим позицию для линии разделения (между последней исторической и первой прогнозной точкой)
+                                const xPos = xScale.getPixelForValue(transitionIdx + 0.5);
+                                
+                                ctx.save();
+                                ctx.strokeStyle = '#000000';
+                                ctx.lineWidth = 2;
+                                ctx.setLineDash([5, 5]);
+                                ctx.beginPath();
+                                ctx.moveTo(xPos, yScale.top);
+                                ctx.lineTo(xPos, yScale.bottom);
+                                ctx.stroke();
+                                ctx.restore();
+                                
+                                // Добавляем текст "Начало прогноза"
+                                ctx.save();
+                                ctx.fillStyle = '#000000';
+                                ctx.font = 'bold 12px Arial';
+                                ctx.textAlign = 'center';
+                                ctx.fillText('Начало прогноза', xPos, yScale.top - 10);
+                                ctx.restore();
+                            }
+                        }
+                    };
+
+                    // Создаем новый график
+                    const ctx = document.getElementById('forecastChart').getContext('2d');
+                    forecastChart = new Chart(ctx, {
+                        plugins: [verticalLinePlugin],
+                        type: 'line',
+                        data: {
+                            labels: allDates,
+                            datasets: [
+                                {
+                                    label: 'Исторические данные',
+                                    data: historicalData,
+                                    borderColor: '#2E86AB',
+                                    backgroundColor: 'rgba(46, 134, 171, 0.1)',
+                                    borderWidth: 2,
+                                    pointRadius: 3,
+                                    pointHoverRadius: 5,
+                                    tension: 0.1,
+                                    spanGaps: false
+                                },
+                                {
+                                    label: 'Прогноз',
+                                    data: forecastData,
+                                    borderColor: '#A23B72',
+                                    backgroundColor: 'rgba(162, 59, 114, 0.1)',
+                                    borderWidth: 2,
+                                    borderDash: [5, 5],
+                                    pointRadius: 3,
+                                    pointHoverRadius: 5,
+                                    tension: 0.1,
+                                    spanGaps: false
+                                }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: true,
+                            interaction: {
+                                intersect: false,
+                                mode: 'index'
+                            },
+                            plugins: {
+                                title: {
+                                    display: true,
+                                    text: (() => {
+                                        const filterText = Object.keys(currentFilters).length > 0 
+                                            ? ' - ' + Object.values(currentFilters).join(', ') 
+                                            : '';
+                                        return `${metric}${filterText}`;
+                                    })(),
+                                    font: {
+                                        size: 16,
+                                        weight: 'bold'
+                                    }
+                                },
+                                legend: {
+                                    display: true,
+                                    position: 'top'
+                                },
+                                tooltip: {
+                                    enabled: true
+                                }
+                            },
+                            scales: {
+                                x: {
+                                    type: 'category',
+                                    display: true,
+                                    title: {
+                                        display: true,
+                                        text: 'Дата'
+                                    },
+                                    ticks: {
+                                        maxRotation: 45,
+                                        minRotation: 45,
+                                        autoSkip: true,
+                                        maxTicksLimit: 20
+                                    }
+                                },
+                                y: {
+                                    display: true,
+                                    title: {
+                                        display: true,
+                                        text: metric
+                                    },
+                                    beginAtZero: true
+                                }
+                            },
+                            elements: {
+                                point: {
+                                    hoverRadius: 6
+                                }
+                            }
+                        }
+                    });
+                })
+                .catch(error => {
+                    console.error('Ошибка при загрузке данных графика:', error);
+                    alert('Ошибка при загрузке данных графика');
+                });
+        }
+
+        // ========== Функции для расчета эластичности ==========
+        let currentElasticityForecastId = null;
+
+        // Загрузка списка прогнозов для эластичности
+        function loadElasticityForecastList() {
+            fetch('/api/forecast/list')
+                .then(response => response.json())
+                .then(data => {
+                    const select = document.getElementById('elasticityForecastSelect');
+                    select.innerHTML = '<option value="">Выберите прогноз</option>';
+                    
+                    if (data.forecasts && data.forecasts.length > 0) {
+                        data.forecasts.forEach(forecast => {
+                            const option = document.createElement('option');
+                            option.value = forecast.session_id;
+                            option.textContent = `${forecast.created} (${forecast.filename})`;
+                            select.appendChild(option);
+                        });
+                        document.getElementById('elasticityContent').style.display = 'block';
+                        document.getElementById('noElasticityDataMessage').style.display = 'none';
+                    } else {
+                        document.getElementById('elasticityContent').style.display = 'none';
+                        document.getElementById('noElasticityDataMessage').style.display = 'block';
+                    }
+                })
+                .catch(error => {
+                    console.error('Ошибка при загрузке списка прогнозов:', error);
+                    document.getElementById('elasticityContent').style.display = 'none';
+                    document.getElementById('noElasticityDataMessage').style.display = 'block';
+                });
+        }
+
+        // Загрузка данных выбранного прогноза для эластичности
+        function loadElasticityForecastData() {
+            const forecastId = document.getElementById('elasticityForecastSelect').value;
+            if (!forecastId) {
+                return;
+            }
+
+            currentElasticityForecastId = forecastId;
+
+            fetch(`/api/forecast/data/${forecastId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        alert('Ошибка: ' + data.error);
+                        return;
+                    }
+
+                    // Заполняем списки метрик (только спрогнозированные)
+                    const xSelect = document.getElementById('xMetricSelect');
+                    const ySelect = document.getElementById('yMetricSelect');
+                    
+                    xSelect.innerHTML = '<option value="">Выберите метрику X</option>';
+                    ySelect.innerHTML = '<option value="">Выберите метрику Y</option>';
+                    
+                    if (data.metrics && data.metrics.length > 0) {
+                        data.metrics.forEach(metric => {
+                            const optionX = document.createElement('option');
+                            optionX.value = metric;
+                            optionX.textContent = metric;
+                            xSelect.appendChild(optionX);
+                            
+                            const optionY = document.createElement('option');
+                            optionY.value = metric;
+                            optionY.textContent = metric;
+                            ySelect.appendChild(optionY);
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('Ошибка при загрузке данных прогноза:', error);
+                    alert('Ошибка при загрузке данных прогноза');
+                });
+        }
+
+        // Глобальные переменные для эластичности
+        let currentElasticityData = null;
+        let currentXMetric = null;
+        let currentYMetric = null;
+
+        // Расчет общей эластичности
+        function calculateElasticity() {
+            const forecastId = currentElasticityForecastId;
+            const xMetric = document.getElementById('xMetricSelect').value;
+            const yMetric = document.getElementById('yMetricSelect').value;
+
+            if (!forecastId || !xMetric || !yMetric) {
+                alert('Пожалуйста, выберите прогноз и обе метрики');
+                return;
+            }
+
+            if (xMetric === yMetric) {
+                alert('Метрики X и Y должны быть разными');
+                return;
+            }
+
+            currentXMetric = xMetric;
+            currentYMetric = yMetric;
+
+            document.getElementById('elasticityResults').style.display = 'block';
+            document.getElementById('elasticityLoading').style.display = 'block';
+            document.getElementById('filtersTable').style.display = 'none';
+            document.getElementById('sliceElasticityResult').style.display = 'none';
+
+            const url = `/api/elasticity/calculate/${forecastId}?x_metric=${encodeURIComponent(xMetric)}&y_metric=${encodeURIComponent(yMetric)}`;
+
+            fetch(url)
+                .then(response => {
+                    if (!response.ok) {
+                        return response.json().then(errData => {
+                            throw new Error(errData.error || 'Ошибка сервера');
+                        });
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    document.getElementById('elasticityLoading').style.display = 'none';
+                    
+                    console.log('Данные эластичности:', data);
+                    
+                    if (data.error) {
+                        document.getElementById('elasticityLoading').style.display = 'none';
+                        alert('Ошибка: ' + data.error);
+                        return;
+                    }
+
+                    if (!data.success) {
+                        document.getElementById('elasticityLoading').style.display = 'none';
+                        alert('Ошибка: ' + (data.error || 'Неизвестная ошибка'));
+                        return;
+                    }
+
+                    // Сохраняем данные
+                    currentElasticityData = data;
+
+                    // Показываем таблицу фильтров
+                    displayFiltersTable(data.categorical_columns);
+                })
+                .catch(error => {
+                    console.error('Ошибка при расчете эластичности:', error);
+                    document.getElementById('elasticityLoading').style.display = 'none';
+                    alert('Ошибка при расчете эластичности: ' + error.message);
+                });
+        }
+
+
+        // Отображение таблицы фильтров
+        function displayFiltersTable(categoricalColumns) {
+            const tbody = document.getElementById('filtersTableBody');
+            tbody.innerHTML = '';
+
+            if (!categoricalColumns || Object.keys(categoricalColumns).length === 0) {
+                tbody.innerHTML = '<tr><td colspan="2">Нет категориальных признаков для фильтрации</td></tr>';
+                document.getElementById('filtersTable').style.display = 'block';
+                return;
+            }
+
+            for (const [colName, values] of Object.entries(categoricalColumns)) {
+                const row = document.createElement('tr');
+                
+                const nameCell = document.createElement('td');
+                nameCell.textContent = colName;
+                nameCell.style.fontWeight = 'bold';
+                
+                const valueCell = document.createElement('td');
+                const select = document.createElement('select');
+                select.className = 'form-control';
+                select.setAttribute('data-column', colName);
+                select.id = `filter_${colName}`;
+                
+                // Опция "Все"
+                const allOption = document.createElement('option');
+                allOption.value = 'all';
+                allOption.textContent = 'Все';
+                allOption.selected = true;
+                select.appendChild(allOption);
+                
+                // Опции для каждого значения
+                values.forEach(value => {
+                    const option = document.createElement('option');
+                    option.value = value;
+                    option.textContent = value;
+                    select.appendChild(option);
+                });
+                
+                valueCell.appendChild(select);
+                row.appendChild(nameCell);
+                row.appendChild(valueCell);
+                tbody.appendChild(row);
+            }
+
+            document.getElementById('filtersTable').style.display = 'block';
+        }
+
+        // Расчет эластичности по выбранному срезу
+        function loadSliceElasticity() {
+            const forecastId = currentElasticityForecastId;
+            
+            if (!forecastId || !currentXMetric || !currentYMetric) {
+                alert('Сначала выберите метрики');
+                return;
+            }
+
+            // Собираем фильтры
+            const filters = {};
+            document.querySelectorAll('[id^="filter_"]').forEach(select => {
+                const columnName = select.getAttribute('data-column');
+                const value = select.value;
+                if (value && value !== 'all') {
+                    filters[columnName] = value;
+                }
+            });
+
+            document.getElementById('sliceElasticityResult').style.display = 'block';
+            document.getElementById('sliceElasticityContent').innerHTML = '<div class="spinner"></div><p>Расчет эластичности...</p>';
+
+            const url = `/api/elasticity/calculate-slice/${forecastId}?x_metric=${encodeURIComponent(currentXMetric)}&y_metric=${encodeURIComponent(currentYMetric)}&filters=${encodeURIComponent(JSON.stringify(filters))}`;
+
+            fetch(url)
+                .then(response => {
+                    if (!response.ok) {
+                        return response.json().then(errData => {
+                            throw new Error(errData.error || 'Ошибка сервера');
+                        });
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.error) {
+                        document.getElementById('sliceElasticityContent').innerHTML = 
+                            `<div class="error-message">Ошибка: ${data.error}</div>`;
+                        return;
+                    }
+
+                    if (!data.success || !data.result) {
+                        document.getElementById('sliceElasticityContent').innerHTML = 
+                            `<div class="error-message">Ошибка: Не удалось рассчитать эластичность</div>`;
+                        return;
+                    }
+
+                    // Показываем результат
+                    let html = '<div class="slice-info">';
+                    html += `<p><strong>Метрика X:</strong> ${currentXMetric}</p>`;
+                    html += `<p><strong>Метрика Y:</strong> ${currentYMetric}</p>`;
+                    html += '<h4>Выбранные фильтры:</h4><ul>';
+                    if (Object.keys(filters).length === 0) {
+                        html += '<li>Все значения (общая эластичность)</li>';
+                    } else {
+                        for (const [col, val] of Object.entries(filters)) {
+                            html += `<li><strong>${col}:</strong> ${val}</li>`;
+                        }
+                    }
+                    html += '</ul></div>';
+                    
+                    // Показываем информацию о методе
+                    const method = data.result.method || 'without_baseline';
+                    const baseline = data.result.baseline;
+                    if (method === 'with_baseline' && baseline !== null && baseline !== undefined) {
+                        html += `<p class="help-text"><strong>Использован метод с baseline:</strong> baseline = ${baseline.toFixed(2)}</p>`;
+                    } else {
+                        html += `<p class="help-text"><strong>Использован метод без baseline</strong></p>`;
+                    }
+                    html += `<p class="help-text">Коэффициент эластичности показывает, на сколько процентов изменится Y при изменении X на 1%</p>`;
+                    html += displayElasticityMetrics(data.result);
+                    
+                    document.getElementById('sliceElasticityContent').innerHTML = html;
+                    
+                    // Загружаем данные для таблицы моделирования
+                    loadScenarioTable(forecastId, filters, data.result);
+                })
+                .catch(error => {
+                    console.error('Ошибка при расчете эластичности по срезу:', error);
+                    document.getElementById('sliceElasticityContent').innerHTML = 
+                        `<div class="error-message">Ошибка при расчете эластичности: ${error.message}</div>`;
+                });
+        }
+
+
+        // Отображение метрик эластичности
+        function displayElasticityMetrics(result) {
+            // Проверяем, что результат успешен и содержит необходимые данные
+            if (!result || result.success === false) {
+                const errorMsg = result && result.error ? result.error : 'Ошибка расчета';
+                return `<div class="error-message">${errorMsg}</div>`;
+            }
+            
+            // Проверяем наличие всех необходимых полей
+            if (result.elasticity === undefined || result.r2 === undefined) {
+                console.error('Неполные данные результата:', result);
+                return `<div class="error-message">Неполные данные результата расчета</div>`;
+            }
+            
+            let html = `<div class="elasticity-metrics">`;
+            html += `<div class="metric-card">`;
+            html += `<div class="metric-value">${(result.elasticity || 0).toFixed(4)}</div>`;
+            html += `<div class="metric-label">Коэффициент эластичности</div>`;
+            html += `</div>`;
+            
+            html += `<div class="quality-metrics">`;
+            html += `<h5>Метрики качества модели:</h5>`;
+            html += `<div class="quality-grid">`;
+            html += `<div><strong>R²:</strong> ${(result.r2 || 0).toFixed(4)}</div>`;
+            html += `<div><strong>MAE:</strong> ${(result.mae || 0).toFixed(4)}</div>`;
+            html += `<div><strong>RMSE:</strong> ${(result.rmse || 0).toFixed(4)}</div>`;
+            html += `<div><strong>MAPE:</strong> ${(result.mape || 0).toFixed(2)}%</div>`;
+            html += `<div><strong>Точек данных:</strong> ${result.n_points || 0}</div>`;
+            html += `</div>`;
+            html += `</div>`;
+            html += `</div>`;
+            
+            return html;
+        }
+
+        // Загрузка данных для таблицы моделирования
+        function loadScenarioTable(forecastId, filters, elasticityResult) {
+            if (!elasticityResult || !elasticityResult.success) {
+                return;
+            }
+
+            const url = `/api/scenario/data/${forecastId}?x_metric=${encodeURIComponent(currentXMetric)}&y_metric=${encodeURIComponent(currentYMetric)}&filters=${encodeURIComponent(JSON.stringify(filters))}`;
+
+            fetch(url)
+                .then(response => {
+                    if (!response.ok) {
+                        return response.json().then(errData => {
+                            throw new Error(errData.error || 'Ошибка сервера');
+                        });
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.error) {
+                        console.error('Ошибка при загрузке данных:', data.error);
+                        return;
+                    }
+
+                    if (!data.success || !data.data) {
+                        console.error('Нет данных для отображения');
+                        return;
+                    }
+
+                    // Сохраняем параметры модели для пересчета
+                    window.currentElasticity = elasticityResult.elasticity;
+                    window.currentBaseline = elasticityResult.baseline || null;
+                    window.currentMethod = elasticityResult.method || 'without_baseline';
+                    window.currentIntercept = elasticityResult.intercept || 0;
+                    
+                    // Отображаем таблицу
+                    displayScenarioTable(data.data, elasticityResult);
+                })
+                .catch(error => {
+                    console.error('Ошибка при загрузке данных для моделирования:', error);
+                });
+        }
+
+        // Отображение таблицы моделирования
+        function displayScenarioTable(timeSeriesData, elasticityResult) {
+            const tbody = document.getElementById('scenarioTableBody');
+            const xHeader = document.getElementById('xMetricHeader');
+            const yHeader = document.getElementById('yMetricHeader');
+            
+            xHeader.textContent = currentXMetric;
+            yHeader.textContent = currentYMetric;
+            
+            tbody.innerHTML = '';
+
+            timeSeriesData.forEach((row, index) => {
+                const tr = document.createElement('tr');
+                
+                // Дата
+                const dateCell = document.createElement('td');
+                dateCell.textContent = row.date;
+                dateCell.style.fontWeight = 'bold';
+                
+                // Метрика X (редактируемая)
+                const xCell = document.createElement('td');
+                const xInput = document.createElement('input');
+                xInput.type = 'number';
+                xInput.step = '0.01';
+                xInput.value = row.x_value || 0;
+                xInput.className = 'scenario-input';
+                xInput.dataset.index = index;
+                xInput.dataset.originalX = row.x_value || 0;
+                xInput.dataset.originalY = row.y_value || 0;
+                xInput.addEventListener('input', function() {
+                    recalculateY(this);
+                });
+                xCell.appendChild(xInput);
+                
+                // Метрика Y (автоматически пересчитываемая)
+                const yCell = document.createElement('td');
+                const yInput = document.createElement('input');
+                yInput.type = 'number';
+                yInput.step = '0.01';
+                yInput.value = row.y_value || 0;
+                yInput.className = 'scenario-input';
+                yInput.readOnly = true;
+                yInput.style.backgroundColor = '#f5f5f5';
+                yInput.dataset.index = index;
+                yCell.appendChild(yInput);
+                
+                tr.appendChild(dateCell);
+                tr.appendChild(xCell);
+                tr.appendChild(yCell);
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById('scenarioTable').style.display = 'block';
+        }
+
+        // Пересчет метрики Y на основе изменения метрики X
+        function recalculateY(xInput) {
+            const index = parseInt(xInput.dataset.index);
+            const originalX = parseFloat(xInput.dataset.originalX) || 0;
+            const originalY = parseFloat(xInput.dataset.originalY) || 0;
+            const newX = parseFloat(xInput.value) || 0;
+            const elasticity = window.currentElasticity || 0;
+            const baseline = window.currentBaseline;
+            const method = window.currentMethod || 'without_baseline';
+            const intercept = window.currentIntercept || 0;
+
+            if (originalX <= 0 || newX <= 0 || elasticity === 0) {
+                return;
+            }
+
+            let newY;
+
+            if (method === 'with_baseline' && baseline !== null && baseline !== undefined) {
+                // Модель с baseline: y = baseline + a * x^b
+                // Baseline - это предполагаемое наименьшее значение функции
+                // Применяем эластичность к части выше baseline: (y - baseline)
+                // Формула: newY = (originalY - baseline) * (1 + процент_изменения_X * эластичность) + baseline
+                
+                // Проверяем, что originalY > baseline (теоретического минимума)
+                if (originalY <= baseline) {
+                    // Если исходное значение меньше или равно baseline, возвращаем baseline
+                    newY = baseline;
+                } else {
+                    // Вычисляем процент изменения X
+                    const percentChangeX = (newX - originalX) / originalX;
+                    
+                    // Вычисляем процент изменения для части выше baseline: (y - baseline)
+                    const percentChangeY = elasticity * percentChangeX;
+                    
+                    // Применяем изменение к (originalY - baseline)
+                    const yAdjusted = originalY - baseline;
+                    const newYAdjusted = yAdjusted * (1 + percentChangeY);
+                    
+                    // Прибавляем baseline обратно (теоретический минимум функции)
+                    newY = baseline + newYAdjusted;
+                    
+                    // Убеждаемся, что результат не меньше baseline (теоретического минимума)
+                    newY = Math.max(baseline, newY);
+                }
+            } else {
+                // Модель без baseline: log(y) = intercept + elasticity * log(x)
+                // Формула эластичности: % изменения Y = эластичность * % изменения X
+                // % изменения X = (newX - originalX) / originalX
+                // % изменения Y = elasticity * % изменения X
+                // newY = originalY * (1 + % изменения Y)
+                
+                const percentChangeX = (newX - originalX) / originalX;
+                const percentChangeY = elasticity * percentChangeX;
+                newY = originalY * (1 + percentChangeY);
+            }
+
+            // Находим соответствующий input для Y
+            const yInput = document.querySelector(`input[data-index="${index}"][readonly]`);
+            if (yInput) {
+                yInput.value = Math.max(0, newY).toFixed(2);
+            }
+        }
+
+    </script>
+</body>
+</html>
+

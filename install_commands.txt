@@ -1,0 +1,9 @@
+Команды для установки всех необходимых библиотек проекта
+
+pip install Flask
+pip install pandas
+pip install numpy
+pip install scikit-learn
+pip install prophet
+pip install Werkzeug
+pip install scipy

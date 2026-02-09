@@ -1,0 +1,730 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    background: linear-gradient(135deg, #2c2c2c 0%, #4a4a4a 50%, #2c2c2c 100%);
+    min-height: 100vh;
+    padding: 20px;
+    color: #333;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    background: #ffffff;
+    border-radius: 0;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    padding: 40px;
+    border: 1px solid #000000;
+}
+
+header {
+    text-align: center;
+    margin-bottom: 40px;
+    padding-bottom: 20px;
+    border-bottom: 2px solid #000000;
+}
+
+header h1 {
+    color: #000000;
+    font-size: 2.5em;
+    margin-bottom: 10px;
+    font-weight: 700;
+}
+
+header p {
+    color: #666666;
+    font-size: 1.1em;
+}
+
+.step {
+    margin-bottom: 40px;
+}
+
+.step h2 {
+    color: #000000;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #2d5016;
+    font-weight: 600;
+}
+
+.upload-area {
+    border: 2px dashed #000000;
+    border-radius: 0;
+    padding: 60px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: #ffffff;
+}
+
+.upload-area:hover {
+    background: #f5f5f5;
+    border-color: #333333;
+}
+
+.upload-area.dragover {
+    background: #e8e8e8;
+    border-color: #000000;
+}
+
+.upload-content svg {
+    color: #000000;
+    margin-bottom: 20px;
+}
+
+.upload-content p {
+    color: #666;
+    margin: 10px 0;
+}
+
+.file-info {
+    font-weight: bold;
+    color: #000000;
+}
+
+.table-container {
+    overflow-x: auto;
+    margin: 20px 0;
+    border: 1px solid #000000;
+    border-radius: 0;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+}
+
+table th {
+    background: #000000;
+    color: white;
+    padding: 12px;
+    text-align: left;
+    font-weight: 600;
+}
+
+table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid #cccccc;
+}
+
+table tr:hover {
+    background: #f5f5f5;
+}
+
+.config-section {
+    margin-bottom: 30px;
+    padding: 20px;
+    background: #f5f5f5;
+    border-radius: 0;
+    border-left: 4px solid #2d5016;
+    border: 1px solid #000000;
+    border-left-width: 4px;
+}
+
+.config-section h3 {
+    color: #000000;
+    margin-bottom: 10px;
+    font-weight: 600;
+}
+
+.help-text {
+    color: #666666;
+    font-size: 0.9em;
+    margin-bottom: 15px;
+}
+
+.column-item {
+    padding: 10px;
+    margin: 5px 0;
+    background: white;
+    border-radius: 0;
+    display: flex;
+    align-items: center;
+    border: 1px solid #cccccc;
+}
+
+.column-item label {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    flex: 1;
+}
+
+.column-item input[type="checkbox"] {
+    margin-right: 10px;
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}
+
+.column-item select {
+    padding: 6px 12px;
+    border: 1px solid #000000;
+    border-radius: 0;
+    font-size: 0.9em;
+    background: white;
+}
+
+.column-item select:focus {
+    outline: none;
+    border-color: #2d5016;
+    box-shadow: 0 0 0 2px rgba(45, 80, 22, 0.2);
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    color: #000000;
+    font-weight: 500;
+}
+
+.form-control {
+    width: 100%;
+    max-width: 300px;
+    padding: 10px;
+    border: 1px solid #000000;
+    border-radius: 0;
+    font-size: 1em;
+    background: white;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: #2d5016;
+    box-shadow: 0 0 0 2px rgba(45, 80, 22, 0.2);
+}
+
+.btn {
+    padding: 12px 24px;
+    border: 2px solid #000000;
+    border-radius: 0;
+    font-size: 1em;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    display: inline-block;
+}
+
+.btn-primary {
+    background: #2d5016;
+    color: white;
+    border-color: #2d5016;
+}
+
+.btn-primary:hover {
+    background: #3d6b1f;
+    border-color: #3d6b1f;
+}
+
+.btn-success {
+    background: #000000;
+    color: white;
+    border-color: #000000;
+}
+
+.btn-success:hover {
+    background: #333333;
+    border-color: #333333;
+}
+
+.btn-secondary {
+    background: #ffffff;
+    color: #000000;
+    border-color: #000000;
+}
+
+.btn-secondary:hover {
+    background: #f5f5f5;
+    border-color: #333333;
+}
+
+.summary-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    margin: 30px 0;
+}
+
+.card {
+    background: #000000;
+    color: white;
+    padding: 30px;
+    border-radius: 0;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    border: 1px solid #000000;
+}
+
+.card h3 {
+    font-size: 1em;
+    margin-bottom: 10px;
+    opacity: 0.9;
+}
+
+.card .number {
+    font-size: 2.5em;
+    font-weight: bold;
+}
+
+.metrics-summary {
+    margin: 30px 0;
+}
+
+.metrics-summary h3 {
+    margin-bottom: 20px;
+    color: #333;
+}
+
+.metric-card {
+    background: #f5f5f5;
+    padding: 20px;
+    border-radius: 0;
+    margin-bottom: 15px;
+    border-left: 4px solid #2d5016;
+    border: 1px solid #000000;
+    border-left-width: 4px;
+}
+
+.metric-card h4 {
+    color: #000000;
+    margin-bottom: 15px;
+    font-size: 1.2em;
+    font-weight: 600;
+}
+
+.metric-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+}
+
+.metric-stats div {
+    padding: 8px;
+    background: white;
+    border-radius: 0;
+    border: 1px solid #cccccc;
+}
+
+.results-section {
+    margin: 30px 0;
+}
+
+.actions {
+    margin-top: 30px;
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.error-message {
+    background: #f5f5f5;
+    color: #000000;
+    padding: 20px;
+    border-radius: 0;
+    border-left: 4px solid #000000;
+    margin: 20px 0;
+    border: 1px solid #000000;
+    border-left-width: 4px;
+}
+
+.spinner {
+    border: 4px solid #cccccc;
+    border-top: 4px solid #2d5016;
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    animation: spin 1s linear infinite;
+    margin: 20px auto;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+#loadingIndicator {
+    text-align: center;
+    padding: 40px;
+}
+
+#loadingIndicator p {
+    margin-top: 20px;
+    color: #666;
+    font-size: 1.1em;
+}
+
+/* Стили для вкладок */
+.tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 30px;
+    border-bottom: 2px solid #e0e0e0;
+}
+
+.tab-btn {
+    padding: 12px 24px;
+    background: none;
+    border: none;
+    border-bottom: 3px solid transparent;
+    font-size: 1em;
+    font-weight: 600;
+    color: #666666;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.tab-btn:hover {
+    color: #2d5016;
+    background: #f5f5f5;
+}
+
+.tab-btn.active {
+    color: #2d5016;
+    border-bottom-color: #2d5016;
+}
+
+.tab-content {
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+/* Стили для графика */
+.chart-container {
+    margin: 30px 0;
+    padding: 20px;
+    background: white;
+    border-radius: 0;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    position: relative;
+    height: 500px;
+    border: 1px solid #000000;
+}
+
+.chart-container canvas {
+    max-height: 500px;
+}
+
+@media (max-width: 768px) {
+    .container {
+        padding: 20px;
+    }
+
+    header h1 {
+        font-size: 1.8em;
+    }
+
+    .summary-cards {
+        grid-template-columns: 1fr;
+    }
+
+    .metric-stats {
+        grid-template-columns: 1fr;
+    }
+
+    .tabs {
+        flex-direction: column;
+    }
+
+    .tab-btn {
+        width: 100%;
+        text-align: left;
+    }
+
+    .chart-container {
+        height: 400px;
+    }
+}
+
+/* Стили для эластичности */
+.elasticity-metrics {
+    margin: 20px 0;
+}
+
+.elasticity-metrics .metric-card {
+    background: #2d5016;
+    color: white;
+    padding: 20px;
+    border-radius: 0;
+    margin-bottom: 15px;
+    text-align: center;
+    border: 1px solid #2d5016;
+}
+
+.elasticity-metrics .metric-value {
+    font-size: 2.5em;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+.elasticity-metrics .metric-label {
+    font-size: 1.1em;
+    opacity: 0.9;
+    margin-bottom: 10px;
+}
+
+.elasticity-metrics .metric-interpretation {
+    font-size: 0.9em;
+    opacity: 0.8;
+    font-style: italic;
+}
+
+.quality-metrics {
+    margin-top: 20px;
+    padding: 15px;
+    background: #f5f5f5;
+    border-radius: 0;
+    border: 1px solid #000000;
+}
+
+.quality-metrics h5 {
+    margin-bottom: 10px;
+    color: #000000;
+    font-weight: 600;
+}
+
+.quality-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+}
+
+.quality-grid div {
+    padding: 8px;
+    background: white;
+    border-radius: 0;
+    border: 1px solid #cccccc;
+}
+
+.elasticity-tree {
+    list-style: none;
+    padding-left: 0;
+    margin: 10px 0;
+}
+
+.elasticity-tree li {
+    margin: 15px 0;
+    padding-left: 20px;
+    border-left: 2px solid #2d5016;
+}
+
+.slice-header {
+    font-weight: bold;
+    color: #000000;
+    margin-bottom: 10px;
+    padding: 5px;
+    background: #f5f5f5;
+    border-radius: 0;
+    border: 1px solid #2d5016;
+}
+
+/* Стили для аккордеона (выпадающих списков) */
+.accordion-container {
+    margin: 10px 0;
+}
+
+.accordion-item {
+    margin-bottom: 8px;
+    border: 1px solid #000000;
+    border-radius: 0;
+    overflow: hidden;
+    background: white;
+}
+
+.accordion-header {
+    padding: 12px 15px;
+    background: #f5f5f5;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    transition: background 0.2s ease;
+    user-select: none;
+}
+
+.accordion-header:hover {
+    background: #e8e8e8;
+}
+
+.accordion-icon {
+    display: inline-block;
+    width: 20px;
+    margin-right: 10px;
+    font-size: 0.8em;
+    color: #000000;
+    transition: transform 0.2s ease;
+}
+
+.accordion-icon.expanded {
+    transform: rotate(0deg);
+}
+
+.accordion-title {
+    flex: 1;
+    font-weight: 600;
+    color: #333;
+    font-size: 0.95em;
+}
+
+.accordion-content {
+    display: none;
+    padding: 15px;
+    background: white;
+    border-top: 1px solid #e0e0e0;
+}
+
+.accordion-content.active {
+    display: block;
+}
+
+/* Вложенные аккордеоны */
+.accordion-content .accordion-container {
+    margin-left: 20px;
+    margin-top: 10px;
+}
+
+.accordion-content .accordion-item {
+    border-left: 3px solid #2d5016;
+}
+
+.current-level-result {
+    margin-bottom: 20px;
+    padding-bottom: 20px;
+    border-bottom: 2px solid #e0e0e0;
+}
+
+.current-level-result h5 {
+    color: #000000;
+    margin-bottom: 15px;
+    font-weight: 600;
+}
+
+.nested-levels {
+    margin-top: 20px;
+}
+
+.nested-levels h5 {
+    color: #333;
+    margin-bottom: 15px;
+    font-size: 1em;
+}
+
+/* Стили для таблицы фильтров */
+.filters-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 15px 0;
+}
+
+.filters-table th {
+    background: #000000;
+    color: white;
+    padding: 12px;
+    text-align: left;
+    font-weight: 600;
+}
+
+.filters-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid #cccccc;
+}
+
+.filters-table tr:hover {
+    background: #f5f5f5;
+}
+
+.filters-table select {
+    width: 100%;
+    max-width: 400px;
+}
+
+.slice-info {
+    margin-bottom: 20px;
+    padding: 15px;
+    background: #f5f5f5;
+    border-radius: 0;
+    border-left: 4px solid #2d5016;
+    border: 1px solid #000000;
+    border-left-width: 4px;
+}
+
+.slice-info h4 {
+    margin-bottom: 10px;
+    color: #333;
+}
+
+.slice-info ul {
+    margin: 10px 0;
+    padding-left: 20px;
+}
+
+.slice-info li {
+    margin: 5px 0;
+    color: #666;
+}
+
+/* Стили для таблицы моделирования сценариев */
+.scenario-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 15px 0;
+}
+
+.scenario-table th {
+    background: #000000;
+    color: white;
+    padding: 12px;
+    text-align: left;
+    font-weight: 600;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.scenario-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid #cccccc;
+}
+
+.scenario-table tr:hover {
+    background: #f5f5f5;
+}
+
+.scenario-input {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #000000;
+    border-radius: 0;
+    font-size: 0.95em;
+    background: white;
+}
+
+.scenario-input:focus {
+    outline: none;
+    border-color: #2d5016;
+    box-shadow: 0 0 0 2px rgba(45, 80, 22, 0.2);
+}
+
+.scenario-input[readonly] {
+    background-color: #f0f0f0;
+    cursor: not-allowed;
+}
+
